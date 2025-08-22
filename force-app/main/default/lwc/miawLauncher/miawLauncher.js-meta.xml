@@ -20,6 +20,9 @@
       <property name="deploymentName" type="String" label="Messaging Deployment Name"/>
       <property name="scrt2Url" type="String" label="SCRT2 URL (from Messaging setup)"/>
       <property name="useDefaultLauncher" type="Boolean" label="Show default launcher bubble" default="false"/>
+      <property name="prechatFirstNameLabel" type="String" label="Prechat label: First Name" default="First Name"/>
+      <property name="prechatLastNameLabel" type="String" label="Prechat label: Last Name" default="Last Name"/>
+      <property name="prechatEmailLabel" type="String" label="Prechat label: Email" default="Email"/>
     </targetConfig>
   </targetConfigs>
 </LightningComponentBundle>

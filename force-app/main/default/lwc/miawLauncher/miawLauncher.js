@@ -1,4 +1,10 @@
 import { LightningElement, api } from 'lwc';
+import { wire } from 'lwc';
+import USER_ID from '@salesforce/user/Id';
+import { getRecord, getFieldValue } from 'lightning/uiRecordApi';
+import USER_FIRST_NAME from '@salesforce/schema/User.FirstName';
+import USER_LAST_NAME from '@salesforce/schema/User.LastName';
+import USER_EMAIL from '@salesforce/schema/User.Email';
 
 export default class MiawLauncher extends LightningElement {
   @api orgUrl = 'https://YOUR_DOMAIN.my.salesforce.com';
@@ -9,9 +15,29 @@ export default class MiawLauncher extends LightningElement {
   @api scrt2Url = 'https://YOUR_EXPERIENCE_SITE_URL/ESW_Messaging';
   @api buttonLabel = 'Contact support';
   @api useDefaultLauncher = false;
+  @api prechatFirstNameLabel = 'First Name';
+  @api prechatLastNameLabel = 'Last Name';
+  @api prechatEmailLabel = 'Email';
 
   _scriptLoading = false;
   _scriptLoaded = false;
+  _userLoaded = false;
+
+  _userFirstName;
+  _userLastName;
+  _userEmail;
+
+  @wire(getRecord, { recordId: USER_ID, fields: [USER_FIRST_NAME, USER_LAST_NAME, USER_EMAIL] })
+  wiredUser({ data, error }) {
+    if (data) {
+      this._userFirstName = getFieldValue(data, USER_FIRST_NAME);
+      this._userLastName = getFieldValue(data, USER_LAST_NAME);
+      this._userEmail = getFieldValue(data, USER_EMAIL);
+      this._userLoaded = true;
+    } else if (error) {
+      this._userLoaded = true;
+    }
+  }
 
   connectedCallback() {
     if (this.useDefaultLauncher) {
@@ -77,6 +103,9 @@ export default class MiawLauncher extends LightningElement {
       window.embedded_svc.settings.enabledFeatures = ['Messaging'];
       window.embedded_svc.settings.entryFeature = 'Messaging';
 
+      // Pre-populate Messaging pre-chat fields (for esw.min.js deployments)
+      this.applyPrechatSettings();
+
       const gslb = this.gslbBaseUrl || null;
 
       window.embedded_svc.init(
@@ -95,6 +124,41 @@ export default class MiawLauncher extends LightningElement {
       }
     } catch (e) {
       // No-op: initialization failure will keep the launcher inactive
+    }
+  }
+
+  applyPrechatSettings() {
+    try {
+      const firstName = this._userFirstName || '';
+      const lastName = this._userLastName || '';
+      const email = this._userEmail || '';
+      const hasAny = firstName || lastName || email;
+      if (window.embedded_svc && hasAny) {
+        // Attempt to prepopulate by API name and also provide labels for visibility to agents
+        window.embedded_svc.settings.prepopulatedPrechatFields = {
+          FirstName: firstName,
+          LastName: lastName,
+          Email: email
+        };
+        window.embedded_svc.settings.extraPrechatFormDetails = [
+          { label: this.prechatFirstNameLabel, value: firstName, displayToAgent: true },
+          { label: this.prechatLastNameLabel, value: lastName, displayToAgent: true },
+          { label: this.prechatEmailLabel, value: email, displayToAgent: true }
+        ];
+      }
+
+      // If the org uses Embedded Messaging bootstrap elsewhere, set prechat when ready
+      if (window.embeddedservice_bootstrap && typeof window.embeddedservice_bootstrap.prechatAPI?.setVisiblePrechatFields === 'function') {
+        window.addEventListener('onEmbeddedMessagingReady', () => {
+          window.embeddedservice_bootstrap.prechatAPI.setVisiblePrechatFields({
+            FirstName: { value: firstName, isEditableByEndUser: false },
+            LastName: { value: lastName, isEditableByEndUser: false },
+            Email: { value: email, isEditableByEndUser: false }
+          });
+        });
+      }
+    } catch (e) {
+      // swallow
     }
   }
 
