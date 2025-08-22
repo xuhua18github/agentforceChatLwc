@@ -103,7 +103,7 @@ export default class MiawLauncher extends LightningElement {
       window.embedded_svc.settings.enabledFeatures = ['Messaging'];
       window.embedded_svc.settings.entryFeature = 'Messaging';
 
-      // Pre-populate Messaging pre-chat fields (for esw.min.js deployments)
+      // Pre-populate Messaging pre-chat fields as HIDDEN (not visible to end users)
       this.applyPrechatSettings();
 
       const gslb = this.gslbBaseUrl || null;
@@ -133,13 +133,9 @@ export default class MiawLauncher extends LightningElement {
       const lastName = this._userLastName || '';
       const email = this._userEmail || '';
       const hasAny = firstName || lastName || email;
+
       if (window.embedded_svc && hasAny) {
-        // Attempt to prepopulate by API name and also provide labels for visibility to agents
-        window.embedded_svc.settings.prepopulatedPrechatFields = {
-          FirstName: firstName,
-          LastName: lastName,
-          Email: email
-        };
+        // Use extraPrechatFormDetails to send hidden values to the agent/session
         window.embedded_svc.settings.extraPrechatFormDetails = [
           { label: this.prechatFirstNameLabel, value: firstName, displayToAgent: true },
           { label: this.prechatLastNameLabel, value: lastName, displayToAgent: true },
@@ -147,13 +143,13 @@ export default class MiawLauncher extends LightningElement {
         ];
       }
 
-      // If the org uses Embedded Messaging bootstrap elsewhere, set prechat when ready
-      if (window.embeddedservice_bootstrap && typeof window.embeddedservice_bootstrap.prechatAPI?.setVisiblePrechatFields === 'function') {
+      // If the org uses Embedded Messaging bootstrap elsewhere, set HIDDEN prechat fields when ready
+      if (window.embeddedservice_bootstrap && typeof window.embeddedservice_bootstrap.prechatAPI?.setHiddenPrechatFields === 'function') {
         window.addEventListener('onEmbeddedMessagingReady', () => {
-          window.embeddedservice_bootstrap.prechatAPI.setVisiblePrechatFields({
-            FirstName: { value: firstName, isEditableByEndUser: false },
-            LastName: { value: lastName, isEditableByEndUser: false },
-            Email: { value: email, isEditableByEndUser: false }
+          window.embeddedservice_bootstrap.prechatAPI.setHiddenPrechatFields({
+            FirstName: { value: firstName },
+            LastName: { value: lastName },
+            Email: { value: email }
           });
         });
       }
