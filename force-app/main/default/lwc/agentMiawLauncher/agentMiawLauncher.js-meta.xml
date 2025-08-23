@@ -27,6 +27,7 @@
       <property name="prechatFirstNameApiName" type="String" label="Prechat first name field API name" default="_firstName"/>
       <property name="prechatLastNameApiName" type="String" label="Prechat last name field API name" default="_lastName"/>
       <property name="prechatEmailApiName" type="String" label="Prechat email field API name" default="_email"/>
+      <property name="debug" type="Boolean" label="Enable debug logs in console" default="false"/>
     </targetConfig>
   </targetConfigs>
 </LightningComponentBundle>

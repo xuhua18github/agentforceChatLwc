@@ -23,6 +23,7 @@ export default class AgentMiawLauncher extends LightningElement {
   @api prechatFirstNameApiName = '_firstName';
   @api prechatLastNameApiName = '_lastName';
   @api prechatEmailApiName = '_email';
+  @api debug = false; // enable console logs
 
   _scriptLoading = false;
   _scriptLoaded = false;
@@ -41,10 +42,14 @@ export default class AgentMiawLauncher extends LightningElement {
       this._userFirstName = getFieldValue(data, USER_FIRST_NAME);
       this._userLastName = getFieldValue(data, USER_LASTNAME);
       this._userEmail = getFieldValue(data, USER_EMAIL);
+      if (this.debug) console.log('[AgentMiawLauncher] Wired user loaded');
+    } else if (error) {
+      if (this.debug) console.warn('[AgentMiawLauncher] Wired user error', error);
     }
   }
 
   connectedCallback() {
+    if (this.debug) console.log('[AgentMiawLauncher] connectedCallback');
     this.initEmbeddedMessaging(false);
   }
 
@@ -54,11 +59,15 @@ export default class AgentMiawLauncher extends LightningElement {
       const container = this.template.querySelector('[data-embedded-container]');
       if (container && window.embeddedservice_bootstrap?.settings) {
         window.embeddedservice_bootstrap.settings.targetElement = container;
+        if (this.debug) console.log('[AgentMiawLauncher] targetElement set');
       }
-    } catch (_ignored) {}
+    } catch (e) {
+      if (this.debug) console.warn('[AgentMiawLauncher] targetElement set failed', e);
+    }
   }
 
   handleLaunchClick() {
+    if (this.debug) console.log('[AgentMiawLauncher] handleLaunchClick');
     if (!this._scriptLoaded) {
       this.initEmbeddedMessaging(true);
     } else {
@@ -73,9 +82,10 @@ export default class AgentMiawLauncher extends LightningElement {
   handleSearch = () => {
     const query = (this.searchQuery || '').trim();
     if (!query) {
-      // No-op if empty input
+      if (this.debug) console.warn('[AgentMiawLauncher] Empty query, ignoring');
       return;
     }
+    if (this.debug) console.log('[AgentMiawLauncher] handleSearch', query);
     this._pendingInitialQuery = query;
     this.showContainer = true;
     this.launchWithPrechat(query);
@@ -96,6 +106,7 @@ export default class AgentMiawLauncher extends LightningElement {
 
     if (window.embeddedservice_bootstrap && window.embeddedservice_bootstrap.init) {
       this._scriptLoaded = true;
+      if (this.debug) console.log('[AgentMiawLauncher] bootstrap already present');
       this.configureAndInit(openAfterInit);
       return;
     }
@@ -112,10 +123,12 @@ export default class AgentMiawLauncher extends LightningElement {
     script.onload = () => {
       this._scriptLoaded = true;
       this._scriptLoading = false;
+      if (this.debug) console.log('[AgentMiawLauncher] bootstrap loaded');
       this.configureAndInit(openAfterInit);
     };
     script.onerror = () => {
       this._scriptLoading = false;
+      if (this.debug) console.error('[AgentMiawLauncher] bootstrap failed to load');
     };
     document.body.appendChild(script);
   }
@@ -126,19 +139,26 @@ export default class AgentMiawLauncher extends LightningElement {
 
   configureAndInit(openAfterInit) {
     try {
+      if (this.debug) console.log('[AgentMiawLauncher] configureAndInit init');
       // Optional: search mode flag
       try {
         if (this.enableSearchMode && window.embeddedservice_bootstrap && window.embeddedservice_bootstrap.settings) {
           window.embeddedservice_bootstrap.settings.searchEnabled = true;
+          if (this.debug) console.log('[AgentMiawLauncher] searchEnabled=true');
         }
-      } catch (_ignored) {}
+      } catch (e) {
+        if (this.debug) console.warn('[AgentMiawLauncher] searchEnabled set failed', e);
+      }
 
       // Optional: disable user input for bot
       try {
         if (window.embeddedservice_bootstrap && window.embeddedservice_bootstrap.settings) {
           window.embeddedservice_bootstrap.settings.enableUserInputForConversationWithBot = !this.disableUserInputForBot;
+          if (this.debug) console.log('[AgentMiawLauncher] enableUserInputForConversationWithBot', !this.disableUserInputForBot);
         }
-      } catch (_ignored) {}
+      } catch (e) {
+        if (this.debug) console.warn('[AgentMiawLauncher] bot input setting failed', e);
+      }
 
       // Initialize Embedded Messaging (bootstrap)
       window.embeddedservice_bootstrap.init(
@@ -152,6 +172,7 @@ export default class AgentMiawLauncher extends LightningElement {
 
       // Identity: credential-based user verification
       window.addEventListener('onEmbeddedMessagingReady', async () => {
+        if (this.debug) console.log('[AgentMiawLauncher] onEmbeddedMessagingReady');
         await this.setIdentity();
         if (this.enableSearchMode) {
           this.tryOpenSearchUi();
@@ -162,6 +183,7 @@ export default class AgentMiawLauncher extends LightningElement {
         }
       });
       window.addEventListener('onEmbeddedMessagingIdentityTokenExpired', async () => {
+        if (this.debug) console.log('[AgentMiawLauncher] onIdentityTokenExpired');
         await this.setIdentity();
       });
 
@@ -169,16 +191,18 @@ export default class AgentMiawLauncher extends LightningElement {
         window.setTimeout(() => this.openMessaging(), 50);
       }
     } catch (e) {
-      // no-op
+      if (this.debug) console.error('[AgentMiawLauncher] configureAndInit error', e);
     }
   }
 
   async setIdentity() {
     if (!window.embeddedservice_bootstrap || !window.embeddedservice_bootstrap.userVerificationAPI) {
+      if (this.debug) console.warn('[AgentMiawLauncher] userVerificationAPI not available');
       return;
     }
     try {
       const identity = await this.fetchAccessToken();
+      if (this.debug) console.log('[AgentMiawLauncher] setIdentity fetched token', !!identity);
       if (identity && identity.accessToken) {
         const payload = {
           identityTokenType: this.identityTokenType,
@@ -188,9 +212,10 @@ export default class AgentMiawLauncher extends LightningElement {
           payload.serverURL = identity.serverUrl;
         }
         window.embeddedservice_bootstrap.userVerificationAPI.setIdentityToken(payload);
+        if (this.debug) console.log('[AgentMiawLauncher] identity set');
       }
     } catch (e) {
-      // swallow
+      if (this.debug) console.error('[AgentMiawLauncher] setIdentity failed', e);
     }
   }
 
@@ -199,24 +224,32 @@ export default class AgentMiawLauncher extends LightningElement {
     if (this.preferApexAccessToken) {
       try {
         const fromApex = await getAccessToken();
+        if (this.debug) console.log('[AgentMiawLauncher] getAccessToken (Apex) OK');
         if (fromApex && fromApex.accessToken) {
           return fromApex;
         }
       } catch (e) {
+        if (this.debug) console.warn('[AgentMiawLauncher] getAccessToken (Apex) failed', e);
         // fallback to HTTP endpoint
       }
     }
     if (this.accessTokenEndpoint) {
-      const response = await fetch(this.accessTokenEndpoint, { credentials: 'include' });
-      const text = await response.text();
       try {
-        const json = JSON.parse(text);
-        return {
-          accessToken: json.accessToken || json.token,
-          serverUrl: json.serverUrl || json.instanceUrl || json.domain || null
-        };
-      } catch (_ignored) {
-        return { accessToken: text, serverUrl: null };
+        const response = await fetch(this.accessTokenEndpoint, { credentials: 'include' });
+        const text = await response.text();
+        try {
+          const json = JSON.parse(text);
+          if (this.debug) console.log('[AgentMiawLauncher] getAccessToken (HTTP JSON) OK');
+          return {
+            accessToken: json.accessToken || json.token,
+            serverUrl: json.serverUrl || json.instanceUrl || json.domain || null
+          };
+        } catch (_ignored) {
+          if (this.debug) console.log('[AgentMiawLauncher] getAccessToken (HTTP text) OK');
+          return { accessToken: text, serverUrl: null };
+        }
+      } catch (e) {
+        if (this.debug) console.error('[AgentMiawLauncher] getAccessToken (HTTP) failed', e);
       }
     }
     return null;
@@ -245,10 +278,12 @@ export default class AgentMiawLauncher extends LightningElement {
         window.embeddedservice_bootstrap.prechatAPI.setHiddenPrechatFields({
           Prechat_Language: navigator.language || 'en'
         });
+        if (this.debug) console.log('[AgentMiawLauncher] prechat fields set', visible);
       }
       // Launch the chat (shows prechat or chat automatically)
       if (window.embeddedservice_bootstrap?.utilAPI?.launchChat) {
         window.embeddedservice_bootstrap.utilAPI.launchChat();
+        if (this.debug) console.log('[AgentMiawLauncher] utilAPI.launchChat called');
       } else {
         this.openMessaging();
       }
@@ -260,32 +295,41 @@ export default class AgentMiawLauncher extends LightningElement {
             const entry = (payload && payload.entries && payload.entries[0]) || null;
             if (entry && entry.operation === 'add' && entry.participant?.role === 'Chatbot') {
               window.embeddedservice_bootstrap?.utilAPI?.sendTextMessage?.(query);
+              if (this.debug) console.log('[AgentMiawLauncher] initial message sent');
               window.removeEventListener('onEmbeddedMessagingConversationParticipantChanged', handler);
               this._pendingInitialQuery = null;
             }
-          } catch (_ignored) {}
+          } catch (e) {
+            if (this.debug) console.warn('[AgentMiawLauncher] participant handler parse error', e);
+          }
         };
         window.addEventListener('onEmbeddedMessagingConversationParticipantChanged', handler);
       }
-    } catch (_ignored) {}
+    } catch (e) {
+      if (this.debug) console.error('[AgentMiawLauncher] launchWithPrechat failed', e);
+    }
   }
 
   tryOpenSearchUi() {
     try {
-      // Attempt to open a search experience if the API is available in your org/version
       if (window.embeddedservice_bootstrap?.searchAPI && typeof window.embeddedservice_bootstrap.searchAPI.open === 'function') {
         window.embeddedservice_bootstrap.searchAPI.open();
+        if (this.debug) console.log('[AgentMiawLauncher] searchAPI.open called');
         return;
       }
       if (typeof window.embeddedservice_bootstrap?.openHelpCenter === 'function') {
         window.embeddedservice_bootstrap.openHelpCenter();
+        if (this.debug) console.log('[AgentMiawLauncher] openHelpCenter called');
       }
-    } catch (_ignored) {}
+    } catch (e) {
+      if (this.debug) console.warn('[AgentMiawLauncher] tryOpenSearchUi failed', e);
+    }
   }
 
   openMessaging() {
     if (window.embeddedservice_bootstrap && typeof window.embeddedservice_bootstrap.openMessaging === 'function') {
       window.embeddedservice_bootstrap.openMessaging();
+      if (this.debug) console.log('[AgentMiawLauncher] openMessaging called');
     }
   }
 }
