@@ -142,11 +142,14 @@ export default class AgentMiawLauncher extends LightningElement {
     this._scriptLoading = true;
     const script = document.createElement('script');
     try {
-      const parsedOrgUrl = new URL(this.orgUrl);
-      script.src = `${parsedOrgUrl.origin}/embeddedservice/asyncclient/bootstrap.min.js`;
+      // Prefer loading bootstrap from the Embedded Messaging deployment base URL
+      const base = (this.siteUrl || '').replace(/\/$/, '');
+      script.src = `${base}/assets/js/bootstrap.min.js`;
     } catch (e) {
+      // Fallback to generic CDN path if siteUrl is malformed
       script.src = 'https://service.force.com/embeddedservice/asyncclient/bootstrap.min.js';
     }
+    if (this.debug) console.log('[AgentMiawLauncher] bootstrap URL', script.src);
 
     script.onload = () => {
       this._scriptLoaded = true;
@@ -156,7 +159,7 @@ export default class AgentMiawLauncher extends LightningElement {
     };
     script.onerror = () => {
       this._scriptLoading = false;
-      if (this.debug) console.error('[AgentMiawLauncher] bootstrap failed to load');
+      if (this.debug) console.error('[AgentMiawLauncher] bootstrap failed to load', script.src);
     };
     document.body.appendChild(script);
   }
