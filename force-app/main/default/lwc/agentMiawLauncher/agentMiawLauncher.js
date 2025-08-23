@@ -18,6 +18,11 @@ export default class AgentMiawLauncher extends LightningElement {
   @api accessTokenEndpoint; // Optional HTTP endpoint to fetch { accessToken, serverUrl }
   @api preferApexAccessToken = true; // Use Apex to return access token + server URL
   @api enableSearchMode = false; // Attempt to enable/open search UI if supported
+  @api disableUserInputForBot = false; // mirrors enableUserInputForConversationWithBot=false
+  @api prechatSubjectFieldApiName = '_subject';
+  @api prechatFirstNameApiName = '_firstName';
+  @api prechatLastNameApiName = '_lastName';
+  @api prechatEmailApiName = '_email';
 
   _scriptLoading = false;
   _scriptLoaded = false;
@@ -25,6 +30,10 @@ export default class AgentMiawLauncher extends LightningElement {
   _userFirstName;
   _userLastName;
   _userEmail;
+
+  searchQuery = '';
+  showContainer = true;
+  _pendingInitialQuery;
 
   @wire(getRecord, { recordId: USER_ID, fields: [USER_FIRST_NAME, USER_LASTNAME, USER_EMAIL] })
   wiredUser({ data, error }) {
@@ -39,6 +48,16 @@ export default class AgentMiawLauncher extends LightningElement {
     this.initEmbeddedMessaging(false);
   }
 
+  renderedCallback() {
+    // Attach targetElement to the container in this component once available
+    try {
+      const container = this.template.querySelector('[data-embedded-container]');
+      if (container && window.embeddedservice_bootstrap?.settings) {
+        window.embeddedservice_bootstrap.settings.targetElement = container;
+      }
+    } catch (_ignored) {}
+  }
+
   handleLaunchClick() {
     if (!this._scriptLoaded) {
       this.initEmbeddedMessaging(true);
@@ -46,6 +65,21 @@ export default class AgentMiawLauncher extends LightningElement {
       this.openMessaging();
     }
   }
+
+  handleQueryChange(event) {
+    this.searchQuery = event.detail.value;
+  }
+
+  handleSearch = () => {
+    const query = (this.searchQuery || '').trim();
+    if (!query) {
+      // No-op if empty input
+      return;
+    }
+    this._pendingInitialQuery = query;
+    this.showContainer = true;
+    this.launchWithPrechat(query);
+  };
 
   initEmbeddedMessaging(openAfterInit) {
     if (this._scriptLoading) {
@@ -88,11 +122,17 @@ export default class AgentMiawLauncher extends LightningElement {
 
   configureAndInit(openAfterInit) {
     try {
-      // Optional: set search-related settings if supported
+      // Optional: search mode flag
       try {
         if (this.enableSearchMode && window.embeddedservice_bootstrap && window.embeddedservice_bootstrap.settings) {
-          // These settings are no-ops if not supported in your org/version
           window.embeddedservice_bootstrap.settings.searchEnabled = true;
+        }
+      } catch (_ignored) {}
+
+      // Optional: disable user input for bot
+      try {
+        if (window.embeddedservice_bootstrap && window.embeddedservice_bootstrap.settings) {
+          window.embeddedservice_bootstrap.settings.enableUserInputForConversationWithBot = !this.disableUserInputForBot;
         }
       } catch (_ignored) {}
 
@@ -111,6 +151,10 @@ export default class AgentMiawLauncher extends LightningElement {
         await this.setIdentity();
         if (this.enableSearchMode) {
           this.tryOpenSearchUi();
+        }
+        // If a query was requested before ready, launch and send it now
+        if (this._pendingInitialQuery) {
+          this.launchWithPrechat(this._pendingInitialQuery);
         }
       });
       window.addEventListener('onEmbeddedMessagingIdentityTokenExpired', async () => {
@@ -172,6 +216,54 @@ export default class AgentMiawLauncher extends LightningElement {
       }
     }
     return null;
+  }
+
+  launchWithPrechat(query) {
+    try {
+      const firstName = this._userFirstName || '';
+      const lastName = this._userLastName || '';
+      const email = this._userEmail || '';
+      if (window.embeddedservice_bootstrap?.prechatAPI) {
+        const visible = {};
+        if (this.prechatFirstNameApiName) {
+          visible[this.prechatFirstNameApiName] = { value: firstName, isEditableByEndUser: false };
+        }
+        if (this.prechatLastNameApiName) {
+          visible[this.prechatLastNameApiName] = { value: lastName, isEditableByEndUser: false };
+        }
+        if (this.prechatEmailApiName) {
+          visible[this.prechatEmailApiName] = { value: email, isEditableByEndUser: false };
+        }
+        if (this.prechatSubjectFieldApiName && query) {
+          visible[this.prechatSubjectFieldApiName] = { value: query, isEditableByEndUser: true };
+        }
+        window.embeddedservice_bootstrap.prechatAPI.setVisiblePrechatFields(visible);
+        window.embeddedservice_bootstrap.prechatAPI.setHiddenPrechatFields({
+          Prechat_Language: navigator.language || 'en'
+        });
+      }
+      // Launch the chat (shows prechat or chat automatically)
+      if (window.embeddedservice_bootstrap?.utilAPI?.launchChat) {
+        window.embeddedservice_bootstrap.utilAPI.launchChat();
+      } else {
+        this.openMessaging();
+      }
+      // Send the initial message to the bot when participant changes to Chatbot
+      if (query) {
+        const handler = (event) => {
+          try {
+            const payload = JSON.parse(event.detail.conversationEntry.entryPayload);
+            const entry = (payload && payload.entries && payload.entries[0]) || null;
+            if (entry && entry.operation === 'add' && entry.participant?.role === 'Chatbot') {
+              window.embeddedservice_bootstrap?.utilAPI?.sendTextMessage?.(query);
+              window.removeEventListener('onEmbeddedMessagingConversationParticipantChanged', handler);
+              this._pendingInitialQuery = null;
+            }
+          } catch (_ignored) {}
+        };
+        window.addEventListener('onEmbeddedMessagingConversationParticipantChanged', handler);
+      }
+    } catch (_ignored) {}
   }
 
   tryOpenSearchUi() {

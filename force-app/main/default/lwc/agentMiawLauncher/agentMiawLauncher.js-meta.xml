@@ -22,6 +22,11 @@
       <property name="preferApexAccessToken" type="Boolean" label="Fetch access token via Apex" default="true"/>
       <property name="accessTokenEndpoint" type="String" label="Access token HTTP endpoint (optional)"/>
       <property name="enableSearchMode" type="Boolean" label="Enable search mode (if supported)" default="false"/>
+      <property name="disableUserInputForBot" type="Boolean" label="Disable user input when bot is active" default="false"/>
+      <property name="prechatSubjectFieldApiName" type="String" label="Prechat subject field API name" default="_subject"/>
+      <property name="prechatFirstNameApiName" type="String" label="Prechat first name field API name" default="_firstName"/>
+      <property name="prechatLastNameApiName" type="String" label="Prechat last name field API name" default="_lastName"/>
+      <property name="prechatEmailApiName" type="String" label="Prechat email field API name" default="_email"/>
     </targetConfig>
   </targetConfigs>
 </LightningComponentBundle>

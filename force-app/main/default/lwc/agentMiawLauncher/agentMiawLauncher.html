@@ -1,10 +1,17 @@
 <template>
-  <div class="container">
-    <lightning-button
-      variant="brand"
-      label={buttonLabel}
-      title={buttonLabel}
-      onclick={handleLaunchClick}
-    ></lightning-button>
+  <div class="launcher">
+    <div class="search-bar">
+      <lightning-input type="text" label="Ask Agentforce" value={searchQuery} onchange={handleQueryChange} placeholder='Ask questions like "How do I reset my password?"'></lightning-input>
+      <lightning-button variant="brand" label="Ask" title="Ask" onclick={handleSearch}></lightning-button>
+    </div>
+    <div class="actions">
+      <lightning-button
+        variant="neutral"
+        label={buttonLabel}
+        title={buttonLabel}
+        onclick={handleLaunchClick}
+      ></lightning-button>
+    </div>
+    <div data-embedded-container class="chat-modal" if:true={showContainer}></div>
   </div>
 </template>
