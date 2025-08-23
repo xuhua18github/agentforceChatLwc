@@ -61,19 +61,5 @@
 	align-items: center;
 }
 
-/* Embedded Messaging iframes/elements (best-effort; shadow/iframe may limit overrides) */
-.embeddedContainer #embedded-messaging,
-.embeddedContainer #embeddedMessagingFrame {
-	height: 90%;
-	width: 90%;
-	border-radius: 10px;
-}
-
-.embeddedContainer #embeddedMessagingFrame {
-	box-shadow: none;
-}
-
-/* Hide floating conversation button if present */
-.embeddedContainer #embeddedMessagingConversationButton {
-	display: none;
-}
+/* Note: Styling inside the Embedded Messaging iframe is not supported from LWC CSS.
+   The widget controls its own internals; we only style our overlay container here. */
