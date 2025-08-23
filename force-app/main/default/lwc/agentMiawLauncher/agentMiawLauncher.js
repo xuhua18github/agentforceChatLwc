@@ -29,7 +29,7 @@ export default class AgentMiawLauncher extends LightningElement {
   // Identity: credential-based (OAuth) verification
   @api identityTokenType = 'OAuth';
   @api accessTokenEndpoint; // Optional: backend endpoint that returns {accessToken, serverUrl}
-  @api preferApexAccessToken = true; // Default: use Apex to fetch access token for the current user
+  @api preferApexAccessToken; // If undefined, treated as true; set to false to disable Apex fetch
 
   // Optional UI flags
   @api enableSearchMode = false; // Attempts to open a search/help experience if supported
@@ -253,8 +253,11 @@ export default class AgentMiawLauncher extends LightningElement {
 
   // Fetch an access token either from Apex (session) or from a provided endpoint
   async fetchAccessToken() {
+    // Treat undefined as true (use metadata default or code fallback)
+    const useApex = (this.preferApexAccessToken !== false);
+
     // Preferred: Apex returns { accessToken, serverUrl } for the current authenticated user
-    if (this.preferApexAccessToken) {
+    if (useApex) {
       try {
         const fromApex = await getAccessToken();
         if (this.debug) console.log('[AgentMiawLauncher] getAccessToken (Apex) OK');
