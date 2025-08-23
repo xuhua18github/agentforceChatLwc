@@ -15,19 +15,12 @@
       <property name="buttonLabel" type="String" label="Button label" default="Contact support"/>
       <property name="orgUrl" type="String" label="Org URL (https://...my.salesforce.com)"/>
       <property name="siteUrl" type="String" label="Experience Cloud Site URL (https://...my.site.com)"/>
-      <property name="gslbBaseUrl" type="String" label="GSLB Base URL (optional)"/>
       <property name="salesforceOrgId" type="String" label="Salesforce Org Id (00D...)"/>
       <property name="deploymentName" type="String" label="Messaging Deployment Name"/>
       <property name="scrt2Url" type="String" label="SCRT2 URL (from Messaging setup)"/>
-      <property name="useDefaultLauncher" type="Boolean" label="Show default launcher bubble" default="false"/>
-      <property name="prechatFirstNameLabel" type="String" label="Prechat label: First Name" default="First Name"/>
-      <property name="prechatLastNameLabel" type="String" label="Prechat label: Last Name" default="Last Name"/>
-      <property name="prechatEmailLabel" type="String" label="Prechat label: Email" default="Email"/>
-      <property name="useEmbeddedMessagingBootstrap" type="Boolean" label="Use Embedded Messaging (bootstrap)" default="false"/>
-      <property name="enableUserVerification" type="Boolean" label="Enable JWT user verification" default="false"/>
-      <property name="identityToken" type="String" label="Static JWT (testing only)"/>
-      <property name="tokenEndpoint" type="String" label="Token endpoint URL (returns JWT)"/>
-      <property name="preferApexJwt" type="Boolean" label="Fetch JWT via Apex (MessagingJwtController)" default="false"/>
+      <property name="identityTokenType" type="String" label="Identity token type (OAuth)" default="OAuth"/>
+      <property name="preferApexAccessToken" type="Boolean" label="Fetch access token via Apex" default="true"/>
+      <property name="accessTokenEndpoint" type="String" label="Access token HTTP endpoint (optional)"/>
     </targetConfig>
   </targetConfigs>
 </LightningComponentBundle>
