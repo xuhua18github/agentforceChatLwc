@@ -11,7 +11,8 @@
     <target>lightning__HomePage</target>
   </targets>
   <targetConfigs>
-    <targetConfig targets="lightningCommunity__Default,lightningCommunity__Page,lightning__AppPage,lightning__RecordPage,lightning__HomePage">
+    <!-- Properties supported on these targets -->
+    <targetConfig targets="lightningCommunity__Default,lightning__AppPage,lightning__RecordPage,lightning__HomePage">
       <property name="buttonLabel" type="String" label="Button label" default="Contact support"/>
       <property name="orgUrl" type="String" label="Org URL (https://...my.salesforce.com)"/>
       <property name="siteUrl" type="String" label="Experience Cloud Site URL (https://...my.site.com)"/>
@@ -29,5 +30,7 @@
       <property name="prechatEmailApiName" type="String" label="Prechat email field API name" default="_email"/>
       <property name="debug" type="Boolean" label="Enable debug logs in console" default="false"/>
     </targetConfig>
+    <!-- Community Page target included without properties to avoid unsupported 'property' tag error -->
+    <targetConfig targets="lightningCommunity__Page"/>
   </targetConfigs>
 </LightningComponentBundle>
