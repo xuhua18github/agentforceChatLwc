@@ -23,6 +23,10 @@
       <property name="prechatFirstNameLabel" type="String" label="Prechat label: First Name" default="First Name"/>
       <property name="prechatLastNameLabel" type="String" label="Prechat label: Last Name" default="Last Name"/>
       <property name="prechatEmailLabel" type="String" label="Prechat label: Email" default="Email"/>
+      <property name="useEmbeddedMessagingBootstrap" type="Boolean" label="Use Embedded Messaging (bootstrap)" default="false"/>
+      <property name="enableUserVerification" type="Boolean" label="Enable JWT user verification" default="false"/>
+      <property name="identityToken" type="String" label="Static JWT (testing only)"/>
+      <property name="tokenEndpoint" type="String" label="Token endpoint URL (returns JWT)"/>
     </targetConfig>
   </targetConfigs>
 </LightningComponentBundle>

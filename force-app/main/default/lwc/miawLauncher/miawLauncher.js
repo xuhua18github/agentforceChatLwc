@@ -18,6 +18,10 @@ export default class MiawLauncher extends LightningElement {
   @api prechatFirstNameLabel = 'First Name';
   @api prechatLastNameLabel = 'Last Name';
   @api prechatEmailLabel = 'Email';
+  @api useEmbeddedMessagingBootstrap = false; // When true, use embeddedservice_bootstrap instead of embedded_svc
+  @api enableUserVerification = false; // When true, set JWT identity token
+  @api identityToken; // Optional static token for testing
+  @api tokenEndpoint; // Optional endpoint to fetch JWT (should return {identityToken}|{token}|{jwt}|raw string)
 
   _scriptLoading = false;
   _scriptLoaded = false;
@@ -40,6 +44,10 @@ export default class MiawLauncher extends LightningElement {
   }
 
   connectedCallback() {
+    if (this.enableUserVerification) {
+      this.useEmbeddedMessagingBootstrap = true;
+      this.setupUserVerificationListeners();
+    }
     if (this.useDefaultLauncher) {
       this.initMiaw(false);
     }
@@ -68,7 +76,12 @@ export default class MiawLauncher extends LightningElement {
       return;
     }
 
-    if (window.embedded_svc && window.embedded_svc.init) {
+    if (!this.useEmbeddedMessagingBootstrap && window.embedded_svc && window.embedded_svc.init) {
+      this._scriptLoaded = true;
+      this.configureAndInit(openAfterInit);
+      return;
+    }
+    if (this.useEmbeddedMessagingBootstrap && window.embeddedservice_bootstrap && window.embeddedservice_bootstrap.init) {
       this._scriptLoaded = true;
       this.configureAndInit(openAfterInit);
       return;
@@ -79,9 +92,13 @@ export default class MiawLauncher extends LightningElement {
     const script = document.createElement('script');
     try {
       const parsedOrgUrl = new URL(this.orgUrl);
-      script.src = `${parsedOrgUrl.origin}/embeddedservice/5.0/esw.min.js`;
+      script.src = this.useEmbeddedMessagingBootstrap
+        ? `${parsedOrgUrl.origin}/embeddedservice/asyncclient/bootstrap.min.js`
+        : `${parsedOrgUrl.origin}/embeddedservice/5.0/esw.min.js`;
     } catch (e) {
-      script.src = 'https://service.force.com/embeddedservice/5.0/esw.min.js';
+      script.src = this.useEmbeddedMessagingBootstrap
+        ? 'https://service.force.com/embeddedservice/asyncclient/bootstrap.min.js'
+        : 'https://service.force.com/embeddedservice/5.0/esw.min.js';
     }
 
     script.onload = () => {
@@ -99,35 +116,55 @@ export default class MiawLauncher extends LightningElement {
 
   configureAndInit(openAfterInit) {
     try {
-      window.embedded_svc.settings.displayHelpButton = this.useDefaultLauncher;
-      window.embedded_svc.settings.enabledFeatures = ['Messaging'];
-      window.embedded_svc.settings.entryFeature = 'Messaging';
-
-      // Pre-populate Messaging pre-chat fields as HIDDEN (not visible to end users)
-      this.applyPrechatSettings();
-
-      const gslb = this.gslbBaseUrl || null;
-
-      window.embedded_svc.init(
-        this.orgUrl,
-        this.siteUrl,
-        gslb,
-        this.salesforceOrgId,
-        this.deploymentName,
-        {
-          scrt2URL: this.scrt2Url
+      if (this.useEmbeddedMessagingBootstrap) {
+        // Embedded Messaging (bootstrap) path
+        // Avoid prechat if JWT identity binding is enabled
+        if (!this.enableUserVerification) {
+          this.applyPrechatSettingsForBootstrap();
         }
-      );
+        window.embeddedservice_bootstrap.init(
+          this.salesforceOrgId,
+          this.deploymentName,
+          this.siteUrl,
+          {
+            scrt2URL: this.scrt2Url
+          }
+        );
+        if (openAfterInit) {
+          window.setTimeout(() => this.openMessaging(), 50);
+        }
+      } else {
+        // Legacy embedded service (esw) path
+        window.embedded_svc.settings.displayHelpButton = this.useDefaultLauncher;
+        window.embedded_svc.settings.enabledFeatures = ['Messaging'];
+        window.embedded_svc.settings.entryFeature = 'Messaging';
 
-      if (openAfterInit) {
-        window.setTimeout(() => this.openMessaging(), 50);
+        // Pre-populate Messaging pre-chat fields as HIDDEN (not visible to end users)
+        if (!this.enableUserVerification) {
+          this.applyPrechatSettingsForEsw();
+        }
+
+        const gslb = this.gslbBaseUrl || null;
+        window.embedded_svc.init(
+          this.orgUrl,
+          this.siteUrl,
+          gslb,
+          this.salesforceOrgId,
+          this.deploymentName,
+          {
+            scrt2URL: this.scrt2Url
+          }
+        );
+        if (openAfterInit) {
+          window.setTimeout(() => this.openMessaging(), 50);
+        }
       }
     } catch (e) {
       // No-op: initialization failure will keep the launcher inactive
     }
   }
 
-  applyPrechatSettings() {
+  applyPrechatSettingsForEsw() {
     try {
       const firstName = this._userFirstName || '';
       const lastName = this._userLastName || '';
@@ -142,9 +179,18 @@ export default class MiawLauncher extends LightningElement {
           { label: this.prechatEmailLabel, value: email, displayToAgent: true }
         ];
       }
+    } catch (e) {
+      // swallow
+    }
+  }
 
-      // If the org uses Embedded Messaging bootstrap elsewhere, set HIDDEN prechat fields when ready
-      if (window.embeddedservice_bootstrap && typeof window.embeddedservice_bootstrap.prechatAPI?.setHiddenPrechatFields === 'function') {
+  applyPrechatSettingsForBootstrap() {
+    try {
+      const firstName = this._userFirstName || '';
+      const lastName = this._userLastName || '';
+      const email = this._userEmail || '';
+      const hasAny = firstName || lastName || email;
+      if (window.embeddedservice_bootstrap && hasAny && typeof window.embeddedservice_bootstrap.prechatAPI?.setHiddenPrechatFields === 'function') {
         window.addEventListener('onEmbeddedMessagingReady', () => {
           window.embeddedservice_bootstrap.prechatAPI.setHiddenPrechatFields({
             FirstName: { value: firstName },
@@ -158,8 +204,59 @@ export default class MiawLauncher extends LightningElement {
     }
   }
 
+  setupUserVerificationListeners() {
+    try {
+      // Set token once ready
+      window.addEventListener('onEmbeddedMessagingReady', async () => {
+        await this.provideIdentityToken();
+      });
+      // Refresh on expiry
+      window.addEventListener('onEmbeddedMessagingIdentityTokenExpired', async () => {
+        await this.provideIdentityToken();
+      });
+    } catch (e) {
+      // swallow
+    }
+  }
+
+  async provideIdentityToken() {
+    if (!this.enableUserVerification || !window.embeddedservice_bootstrap || !window.embeddedservice_bootstrap.userVerificationAPI) {
+      return;
+    }
+    try {
+      const token = await this.fetchIdentityToken();
+      if (token) {
+        window.embeddedservice_bootstrap.userVerificationAPI.setIdentityToken({
+          identityTokenType: 'JWT',
+          identityToken: token
+        });
+      }
+    } catch (e) {
+      // swallow
+    }
+  }
+
+  async fetchIdentityToken() {
+    if (this.identityToken) {
+      return this.identityToken;
+    }
+    if (!this.tokenEndpoint) {
+      return null;
+    }
+    const response = await fetch(this.tokenEndpoint, { credentials: 'include' });
+    const bodyText = await response.text();
+    try {
+      const json = JSON.parse(bodyText);
+      return json.identityToken || json.token || json.jwt || null;
+    } catch (_ignored) {
+      return bodyText;
+    }
+  }
+
   openMessaging() {
-    if (window.embedded_svc && typeof window.embedded_svc.openMessaging === 'function') {
+    if (this.useEmbeddedMessagingBootstrap && window.embeddedservice_bootstrap && typeof window.embeddedservice_bootstrap.openMessaging === 'function') {
+      window.embeddedservice_bootstrap.openMessaging();
+    } else if (window.embedded_svc && typeof window.embedded_svc.openMessaging === 'function') {
       window.embedded_svc.openMessaging();
     } else if (window.embedded_svc && typeof window.embedded_svc.openHelp === 'function') {
       window.embedded_svc.openHelp();
