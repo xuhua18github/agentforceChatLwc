@@ -1,0 +1,78 @@
+/* General body and header styles (scoped: not applied to site body) */
+:host {
+	font-family: Arial, sans-serif;
+	background: linear-gradient(to bottom, #e9f1ff, #f9faff);
+	display: block;
+}
+
+.launcher header nav {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 10px 20px;
+	background-color: #fff;
+	box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.launcher header nav a {
+	text-decoration: none;
+	color: #333;
+	margin-right: 15px;
+	font-size: 14px;
+}
+
+.contact-support {
+	padding: 5px 10px;
+	background-color: #007BFF;
+	color: #fff;
+	border: none;
+	border-radius: 3px;
+	cursor: pointer;
+}
+
+.contact-support:hover {
+	background-color: #0056b3;
+}
+
+/* Hero-like area (local styling for search) */
+.launcher .search-bar {
+	margin-top: 20px;
+	display: flex;
+	gap: 8px;
+	align-items: flex-end;
+}
+
+/* Chat modal styles */
+#embeddedMessagingContainer {
+	display: none;
+	position: fixed;
+	top: 0;
+	left: 0;
+	z-index: 1000;
+	width: 100vw;
+	height: 100vh;
+	background: rgba(255, 255, 255, 0.95);
+	box-shadow: 0px 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+#embeddedMessagingContainer.show {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+}
+
+/* Embedded Messaging iframes/elements (best-effort; shadow/iframe may limit overrides) */
+#embedded-messaging,
+#embeddedMessagingFrame {
+	height: 90%;
+	width: 90%;
+	border-radius: 10px;
+}
+
+#embeddedMessagingFrame {
+	box-shadow: none;
+}
+
+#embeddedMessagingConversationButton {
+	display: none;
+}

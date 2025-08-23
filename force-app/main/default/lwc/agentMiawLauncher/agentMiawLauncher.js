@@ -120,6 +120,10 @@ export default class AgentMiawLauncher extends LightningElement {
     document.body.appendChild(script);
   }
 
+  get containerClass() {
+    return this.showContainer ? 'show' : '';
+  }
+
   configureAndInit(openAfterInit) {
     try {
       // Optional: search mode flag
