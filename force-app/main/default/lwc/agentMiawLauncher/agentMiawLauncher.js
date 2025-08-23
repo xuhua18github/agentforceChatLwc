@@ -33,7 +33,7 @@ export default class AgentMiawLauncher extends LightningElement {
   _userEmail;
 
   searchQuery = '';
-  showContainer = true;
+  showContainer = false;
   _pendingInitialQuery;
 
   @wire(getRecord, { recordId: USER_ID, fields: [USER_FIRST_NAME, USER_LASTNAME, USER_EMAIL] })
