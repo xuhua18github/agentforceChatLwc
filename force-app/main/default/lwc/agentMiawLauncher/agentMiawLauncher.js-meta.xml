@@ -30,7 +30,6 @@
       <property name="prechatEmailApiName" type="String" label="Prechat email field API name" default="_email"/>
       <property name="debug" type="Boolean" label="Enable debug logs in console" default="false"/>
     </targetConfig>
-    <!-- Community Page target included without properties to avoid unsupported 'property' tag error -->
-    <targetConfig targets="lightningCommunity__Page"/>
+    <!-- Removed empty lightningCommunity__Page targetConfig to avoid validation error -->
   </targetConfigs>
 </LightningComponentBundle>
