@@ -162,8 +162,8 @@ export default class AgentMiawLauncher extends LightningElement {
   }
 
   // CSS class toggler for overlay container
-  get containerClass() {
-    return this.showContainer ? 'show' : '';
+  get containerClasses() {
+    return `embeddedContainer ${this.showContainer ? 'show' : ''}`.trim();
   }
 
   // Apply settings, init messaging, and wire identity + event listeners
