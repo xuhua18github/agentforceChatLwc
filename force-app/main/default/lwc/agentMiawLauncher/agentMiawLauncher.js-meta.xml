@@ -21,6 +21,7 @@
       <property name="identityTokenType" type="String" label="Identity token type (OAuth)" default="OAuth"/>
       <property name="preferApexAccessToken" type="Boolean" label="Fetch access token via Apex" default="true"/>
       <property name="accessTokenEndpoint" type="String" label="Access token HTTP endpoint (optional)"/>
+      <property name="enableSearchMode" type="Boolean" label="Enable search mode (if supported)" default="false"/>
     </targetConfig>
   </targetConfigs>
 </LightningComponentBundle>

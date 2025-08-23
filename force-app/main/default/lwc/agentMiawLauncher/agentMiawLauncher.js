@@ -17,6 +17,7 @@ export default class AgentMiawLauncher extends LightningElement {
   @api identityTokenType = 'OAuth';
   @api accessTokenEndpoint; // Optional HTTP endpoint to fetch { accessToken, serverUrl }
   @api preferApexAccessToken = true; // Use Apex to return access token + server URL
+  @api enableSearchMode = false; // Attempt to enable/open search UI if supported
 
   _scriptLoading = false;
   _scriptLoaded = false;
@@ -87,6 +88,14 @@ export default class AgentMiawLauncher extends LightningElement {
 
   configureAndInit(openAfterInit) {
     try {
+      // Optional: set search-related settings if supported
+      try {
+        if (this.enableSearchMode && window.embeddedservice_bootstrap && window.embeddedservice_bootstrap.settings) {
+          // These settings are no-ops if not supported in your org/version
+          window.embeddedservice_bootstrap.settings.searchEnabled = true;
+        }
+      } catch (_ignored) {}
+
       // Initialize Embedded Messaging (bootstrap)
       window.embeddedservice_bootstrap.init(
         this.salesforceOrgId,
@@ -100,6 +109,9 @@ export default class AgentMiawLauncher extends LightningElement {
       // Identity: credential-based user verification
       window.addEventListener('onEmbeddedMessagingReady', async () => {
         await this.setIdentity();
+        if (this.enableSearchMode) {
+          this.tryOpenSearchUi();
+        }
       });
       window.addEventListener('onEmbeddedMessagingIdentityTokenExpired', async () => {
         await this.setIdentity();
@@ -160,6 +172,19 @@ export default class AgentMiawLauncher extends LightningElement {
       }
     }
     return null;
+  }
+
+  tryOpenSearchUi() {
+    try {
+      // Attempt to open a search experience if the API is available in your org/version
+      if (window.embeddedservice_bootstrap?.searchAPI && typeof window.embeddedservice_bootstrap.searchAPI.open === 'function') {
+        window.embeddedservice_bootstrap.searchAPI.open();
+        return;
+      }
+      if (typeof window.embeddedservice_bootstrap?.openHelpCenter === 'function') {
+        window.embeddedservice_bootstrap.openHelpCenter();
+      }
+    } catch (_ignored) {}
   }
 
   openMessaging() {
