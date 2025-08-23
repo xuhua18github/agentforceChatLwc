@@ -1,3 +1,13 @@
+// Component: AgentMiawLauncher
+// Purpose: Launch and host Salesforce Embedded Messaging on an Experience Cloud page.
+// Key features:
+// - Dynamically loads the Embedded Messaging bootstrap script
+// - Uses credential-based user verification via Apex (community session) or HTTP endpoint
+// - Optional search bar to seed a subject and send an initial bot message
+// - Prechat fields (visible + hidden) are populated programmatically
+// - Optional search UI trigger and bot user input toggle
+// - Debug logging toggle to aid troubleshooting
+
 import { LightningElement, api } from 'lwc';
 import { wire } from 'lwc';
 import USER_ID from '@salesforce/user/Id';
@@ -8,34 +18,47 @@ import USER_EMAIL from '@salesforce/schema/User.Email';
 import getAccessToken from '@salesforce/apex/MessagingCredentialController.getAccessToken';
 
 export default class AgentMiawLauncher extends LightningElement {
+  // Experience Builder-configurable properties
   @api orgUrl = 'https://YOUR_DOMAIN.my.salesforce.com';
   @api siteUrl = 'https://YOUR_EXPERIENCE_SITE_URL';
   @api salesforceOrgId = '00DXXXXXXXXXXXX';
   @api deploymentName = 'YOUR_DEPLOYMENT_NAME';
   @api scrt2Url = 'https://YOUR_EXPERIENCE_SITE_URL/ESW_Messaging';
   @api buttonLabel = 'Contact support';
+
+  // Identity: credential-based (OAuth) verification
   @api identityTokenType = 'OAuth';
-  @api accessTokenEndpoint; // Optional HTTP endpoint to fetch { accessToken, serverUrl }
-  @api preferApexAccessToken = true; // Use Apex to return access token + server URL
-  @api enableSearchMode = false; // Attempt to enable/open search UI if supported
-  @api disableUserInputForBot = false; // mirrors enableUserInputForConversationWithBot=false
+  @api accessTokenEndpoint; // Optional: backend endpoint that returns {accessToken, serverUrl}
+  @api preferApexAccessToken = true; // Default: use Apex to fetch access token for the current user
+
+  // Optional UI flags
+  @api enableSearchMode = false; // Attempts to open a search/help experience if supported
+  @api disableUserInputForBot = false; // When true, blocks user input while a bot is active
+
+  // Optional prechat field API names used by your deployment
   @api prechatSubjectFieldApiName = '_subject';
   @api prechatFirstNameApiName = '_firstName';
   @api prechatLastNameApiName = '_lastName';
   @api prechatEmailApiName = '_email';
-  @api debug = false; // enable console logs
 
+  // Debug toggle to emit console logs prefixed with [AgentMiawLauncher]
+  @api debug = false;
+
+  // Internal state for script lifecycle
   _scriptLoading = false;
   _scriptLoaded = false;
 
+  // Current user details (for prechat convenience)
   _userFirstName;
   _userLastName;
   _userEmail;
 
+  // Local UI state
   searchQuery = '';
-  showContainer = false;
-  _pendingInitialQuery;
+  showContainer = false; // Overlay container toggled when launching via search
+  _pendingInitialQuery; // Holds a query typed before messaging is fully ready
 
+  // Wire: fetch minimal user info for prechat population
   @wire(getRecord, { recordId: USER_ID, fields: [USER_FIRST_NAME, USER_LASTNAME, USER_EMAIL] })
   wiredUser({ data, error }) {
     if (data) {
@@ -48,13 +71,14 @@ export default class AgentMiawLauncher extends LightningElement {
     }
   }
 
+  // On first attachment, load and init Embedded Messaging
   connectedCallback() {
     if (this.debug) console.log('[AgentMiawLauncher] connectedCallback');
     this.initEmbeddedMessaging(false);
   }
 
+  // After render, bind the targetElement so the widget renders inside our container overlay
   renderedCallback() {
-    // Attach targetElement to the container in this component once available
     try {
       const container = this.template.querySelector('[data-embedded-container]');
       if (container && window.embeddedservice_bootstrap?.settings) {
@@ -66,6 +90,7 @@ export default class AgentMiawLauncher extends LightningElement {
     }
   }
 
+  // Manual launcher button
   handleLaunchClick() {
     if (this.debug) console.log('[AgentMiawLauncher] handleLaunchClick');
     if (!this._scriptLoaded) {
@@ -75,10 +100,12 @@ export default class AgentMiawLauncher extends LightningElement {
     }
   }
 
+  // Search input bindings
   handleQueryChange(event) {
     this.searchQuery = event.detail.value;
   }
 
+  // Search button: seed prechat and auto-launch
   handleSearch = () => {
     const query = (this.searchQuery || '').trim();
     if (!query) {
@@ -91,6 +118,7 @@ export default class AgentMiawLauncher extends LightningElement {
     this.launchWithPrechat(query);
   };
 
+  // Lazy-load bootstrap if needed, then init
   initEmbeddedMessaging(openAfterInit) {
     if (this._scriptLoading) {
       const wait = () => {
@@ -133,14 +161,17 @@ export default class AgentMiawLauncher extends LightningElement {
     document.body.appendChild(script);
   }
 
+  // CSS class toggler for overlay container
   get containerClass() {
     return this.showContainer ? 'show' : '';
   }
 
+  // Apply settings, init messaging, and wire identity + event listeners
   configureAndInit(openAfterInit) {
     try {
       if (this.debug) console.log('[AgentMiawLauncher] configureAndInit init');
-      // Optional: search mode flag
+
+      // Optional search UI flag (no-op if unsupported by your org/version)
       try {
         if (this.enableSearchMode && window.embeddedservice_bootstrap && window.embeddedservice_bootstrap.settings) {
           window.embeddedservice_bootstrap.settings.searchEnabled = true;
@@ -150,7 +181,7 @@ export default class AgentMiawLauncher extends LightningElement {
         if (this.debug) console.warn('[AgentMiawLauncher] searchEnabled set failed', e);
       }
 
-      // Optional: disable user input for bot
+      // Optional: Disable user input while a bot is active
       try {
         if (window.embeddedservice_bootstrap && window.embeddedservice_bootstrap.settings) {
           window.embeddedservice_bootstrap.settings.enableUserInputForConversationWithBot = !this.disableUserInputForBot;
@@ -170,14 +201,14 @@ export default class AgentMiawLauncher extends LightningElement {
         }
       );
 
-      // Identity: credential-based user verification
+      // Identity lifecycle: set token on ready and refresh on expiry
       window.addEventListener('onEmbeddedMessagingReady', async () => {
         if (this.debug) console.log('[AgentMiawLauncher] onEmbeddedMessagingReady');
         await this.setIdentity();
         if (this.enableSearchMode) {
           this.tryOpenSearchUi();
         }
-        // If a query was requested before ready, launch and send it now
+        // If a query was queued prior to ready, launch and send it now
         if (this._pendingInitialQuery) {
           this.launchWithPrechat(this._pendingInitialQuery);
         }
@@ -195,6 +226,7 @@ export default class AgentMiawLauncher extends LightningElement {
     }
   }
 
+  // Provide OAuth identity (credential-based) to Embedded Messaging
   async setIdentity() {
     if (!window.embeddedservice_bootstrap || !window.embeddedservice_bootstrap.userVerificationAPI) {
       if (this.debug) console.warn('[AgentMiawLauncher] userVerificationAPI not available');
@@ -219,8 +251,9 @@ export default class AgentMiawLauncher extends LightningElement {
     }
   }
 
+  // Fetch an access token either from Apex (session) or from a provided endpoint
   async fetchAccessToken() {
-    // Preferred: Apex returns { accessToken, serverUrl }
+    // Preferred: Apex returns { accessToken, serverUrl } for the current authenticated user
     if (this.preferApexAccessToken) {
       try {
         const fromApex = await getAccessToken();
@@ -230,9 +263,10 @@ export default class AgentMiawLauncher extends LightningElement {
         }
       } catch (e) {
         if (this.debug) console.warn('[AgentMiawLauncher] getAccessToken (Apex) failed', e);
-        // fallback to HTTP endpoint
+        // fallback to HTTP endpoint if configured
       }
     }
+
     if (this.accessTokenEndpoint) {
       try {
         const response = await fetch(this.accessTokenEndpoint, { credentials: 'include' });
@@ -252,14 +286,18 @@ export default class AgentMiawLauncher extends LightningElement {
         if (this.debug) console.error('[AgentMiawLauncher] getAccessToken (HTTP) failed', e);
       }
     }
+
     return null;
   }
 
+  // Configure prechat, launch the chat UI, then send the initial query when the bot joins
   launchWithPrechat(query) {
     try {
       const firstName = this._userFirstName || '';
       const lastName = this._userLastName || '';
       const email = this._userEmail || '';
+
+      // Prechat fields (visible + hidden)
       if (window.embeddedservice_bootstrap?.prechatAPI) {
         const visible = {};
         if (this.prechatFirstNameApiName) {
@@ -280,14 +318,16 @@ export default class AgentMiawLauncher extends LightningElement {
         });
         if (this.debug) console.log('[AgentMiawLauncher] prechat fields set', visible);
       }
-      // Launch the chat (shows prechat or chat automatically)
+
+      // Launch: shows prechat if enabled or opens chat directly
       if (window.embeddedservice_bootstrap?.utilAPI?.launchChat) {
         window.embeddedservice_bootstrap.utilAPI.launchChat();
         if (this.debug) console.log('[AgentMiawLauncher] utilAPI.launchChat called');
       } else {
         this.openMessaging();
       }
-      // Send the initial message to the bot when participant changes to Chatbot
+
+      // Auto-send the initial query to the bot when it appears as a participant
       if (query) {
         const handler = (event) => {
           try {
@@ -310,6 +350,7 @@ export default class AgentMiawLauncher extends LightningElement {
     }
   }
 
+  // Optional helper: attempt to open knowledge/help search UI if supported
   tryOpenSearchUi() {
     try {
       if (window.embeddedservice_bootstrap?.searchAPI && typeof window.embeddedservice_bootstrap.searchAPI.open === 'function') {
@@ -326,6 +367,7 @@ export default class AgentMiawLauncher extends LightningElement {
     }
   }
 
+  // Programmatically open the chat widget
   openMessaging() {
     if (window.embeddedservice_bootstrap && typeof window.embeddedservice_bootstrap.openMessaging === 'function') {
       window.embeddedservice_bootstrap.openMessaging();
