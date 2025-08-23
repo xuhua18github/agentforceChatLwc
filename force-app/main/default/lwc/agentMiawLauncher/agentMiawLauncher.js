@@ -47,6 +47,7 @@ export default class AgentMiawLauncher extends LightningElement {
   // Internal state for script lifecycle
   _scriptLoading = false;
   _scriptLoaded = false;
+  _messagingReady = false; // becomes true after onEmbeddedMessagingReady
 
   // Current user details (for prechat convenience)
   _userFirstName;
@@ -115,7 +116,12 @@ export default class AgentMiawLauncher extends LightningElement {
     if (this.debug) console.log('[AgentMiawLauncher] handleSearch', query);
     this._pendingInitialQuery = query;
     this.showContainer = true;
-    this.launchWithPrechat(query);
+    if (this._messagingReady) {
+      this.launchWithPrechat(query);
+    } else if (!this._scriptLoaded) {
+      // Ensure we start loading if not already
+      this.initEmbeddedMessaging(false);
+    }
   };
 
   // Lazy-load bootstrap if needed, then init
@@ -194,6 +200,17 @@ export default class AgentMiawLauncher extends LightningElement {
         if (this.debug) console.warn('[AgentMiawLauncher] bot input setting failed', e);
       }
 
+      // Bind targetElement before init if available
+      try {
+        const container = this.template && this.template.querySelector('[data-embedded-container]');
+        if (container && window.embeddedservice_bootstrap?.settings) {
+          window.embeddedservice_bootstrap.settings.targetElement = container;
+          if (this.debug) console.log('[AgentMiawLauncher] targetElement set (pre-init)');
+        }
+      } catch (e) {
+        if (this.debug) console.warn('[AgentMiawLauncher] pre-init targetElement failed', e);
+      }
+
       // Initialize Embedded Messaging (bootstrap)
       window.embeddedservice_bootstrap.init(
         this.salesforceOrgId,
@@ -207,6 +224,7 @@ export default class AgentMiawLauncher extends LightningElement {
       // Identity lifecycle: set token on ready and refresh on expiry
       window.addEventListener('onEmbeddedMessagingReady', async () => {
         if (this.debug) console.log('[AgentMiawLauncher] onEmbeddedMessagingReady');
+        this._messagingReady = true;
         await this.setIdentity();
         if (this.enableSearchMode) {
           this.tryOpenSearchUi();
