@@ -27,6 +27,7 @@
       <property name="enableUserVerification" type="Boolean" label="Enable JWT user verification" default="false"/>
       <property name="identityToken" type="String" label="Static JWT (testing only)"/>
       <property name="tokenEndpoint" type="String" label="Token endpoint URL (returns JWT)"/>
+      <property name="preferApexJwt" type="Boolean" label="Fetch JWT via Apex (MessagingJwtController)" default="false"/>
     </targetConfig>
   </targetConfigs>
 </LightningComponentBundle>

@@ -3,8 +3,9 @@ import { wire } from 'lwc';
 import USER_ID from '@salesforce/user/Id';
 import { getRecord, getFieldValue } from 'lightning/uiRecordApi';
 import USER_FIRST_NAME from '@salesforce/schema/User.FirstName';
-import USER_LAST_NAME from '@salesforce/schema/User.LastName';
+import USER_LASTNAME from '@salesforce/schema/User.LastName';
 import USER_EMAIL from '@salesforce/schema/User.Email';
+import getJwt from '@salesforce/apex/MessagingJwtController.getJwt';
 
 export default class MiawLauncher extends LightningElement {
   @api orgUrl = 'https://YOUR_DOMAIN.my.salesforce.com';
@@ -22,6 +23,7 @@ export default class MiawLauncher extends LightningElement {
   @api enableUserVerification = false; // When true, set JWT identity token
   @api identityToken; // Optional static token for testing
   @api tokenEndpoint; // Optional endpoint to fetch JWT (should return {identityToken}|{token}|{jwt}|raw string)
+  @api preferApexJwt = false; // When true, fetch JWT from Apex MessagingJwtController
 
   _scriptLoading = false;
   _scriptLoaded = false;
@@ -31,11 +33,11 @@ export default class MiawLauncher extends LightningElement {
   _userLastName;
   _userEmail;
 
-  @wire(getRecord, { recordId: USER_ID, fields: [USER_FIRST_NAME, USER_LAST_NAME, USER_EMAIL] })
+  @wire(getRecord, { recordId: USER_ID, fields: [USER_FIRST_NAME, USER_LASTNAME, USER_EMAIL] })
   wiredUser({ data, error }) {
     if (data) {
       this._userFirstName = getFieldValue(data, USER_FIRST_NAME);
-      this._userLastName = getFieldValue(data, USER_LAST_NAME);
+      this._userLastName = getFieldValue(data, USER_LASTNAME);
       this._userEmail = getFieldValue(data, USER_EMAIL);
       this._userLoaded = true;
     } else if (error) {
@@ -239,6 +241,16 @@ export default class MiawLauncher extends LightningElement {
   async fetchIdentityToken() {
     if (this.identityToken) {
       return this.identityToken;
+    }
+    if (this.preferApexJwt) {
+      try {
+        const tokenFromApex = await getJwt();
+        if (tokenFromApex) {
+          return tokenFromApex;
+        }
+      } catch (e) {
+        // fall back to tokenEndpoint if provided
+      }
     }
     if (!this.tokenEndpoint) {
       return null;
