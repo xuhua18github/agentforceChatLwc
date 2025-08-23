@@ -24,7 +24,8 @@ public with sharing class MessagingCredentialController {
 		}
 		IdentityTokenResponse res = new IdentityTokenResponse();
 		res.accessToken = UserInfo.getSessionId();
-		res.serverUrl = URL.getSalesforceBaseUrl().toExternalForm();
+		// Use org domain URL (My Domain) for API 58+ compatibility
+		res.serverUrl = URL.getOrgDomainUrl().toExternalForm();
 		return res;
 	}
 }
