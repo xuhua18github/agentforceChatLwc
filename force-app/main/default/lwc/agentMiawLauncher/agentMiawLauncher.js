@@ -7,7 +7,7 @@ import USER_LASTNAME from '@salesforce/schema/User.LastName';
 import USER_EMAIL from '@salesforce/schema/User.Email';
 import getJwt from '@salesforce/apex/MessagingJwtController.getJwt';
 
-export default class MiawLauncher extends LightningElement {
+export default class AgentMiawLauncher extends LightningElement {
   @api orgUrl = 'https://YOUR_DOMAIN.my.salesforce.com';
   @api siteUrl = 'https://YOUR_EXPERIENCE_SITE_URL';
   @api gslbBaseUrl = null;
