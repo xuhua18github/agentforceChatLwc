@@ -223,17 +223,7 @@ export default class AgentMiawLauncher extends LightningElement {
         if (this.debug) console.warn('[AgentMiawLauncher] pre-init targetElement failed', e);
       }
 
-      // Initialize Embedded Messaging (bootstrap)
-      window.embeddedservice_bootstrap.init(
-        this.salesforceOrgId,
-        this.deploymentName,
-        this.siteUrl,
-        {
-          scrt2URL: this.scrt2Url
-        }
-      );
-
-      // Identity lifecycle: set token on ready and refresh on expiry
+      // Register listeners BEFORE init to capture early failures
       window.addEventListener('onEmbeddedMessagingReady', async () => {
         if (this.debug) console.log('[AgentMiawLauncher] onEmbeddedMessagingReady');
         this._messagingReady = true;
@@ -241,12 +231,10 @@ export default class AgentMiawLauncher extends LightningElement {
         if (this.enableSearchMode) {
           this.tryOpenSearchUi();
         }
-        // If a query was queued prior to ready, launch and send it now
         if (this._pendingInitialQuery) {
           this.launchWithPrechat(this._pendingInitialQuery);
         }
       });
-      // Surface init/runtime failures in the console
       window.addEventListener('onEmbeddedMessagingError', (e) => {
         console.error('MIAW error', e && e.detail);
       });
@@ -258,9 +246,15 @@ export default class AgentMiawLauncher extends LightningElement {
         await this.setIdentity();
       });
 
-      if (openAfterInit) {
-        window.setTimeout(() => this.openMessaging(), 50);
-      }
+      // Initialize Embedded Messaging (bootstrap)
+      window.embeddedservice_bootstrap.init(
+        this.salesforceOrgId,
+        this.deploymentName,
+        this.siteUrl,
+        {
+          scrt2URL: this.scrt2Url
+        }
+      );
     } catch (e) {
       if (this.debug) console.error('[AgentMiawLauncher] configureAndInit error', e);
     }
