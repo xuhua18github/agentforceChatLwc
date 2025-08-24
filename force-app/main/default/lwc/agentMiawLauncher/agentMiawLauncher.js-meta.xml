@@ -29,6 +29,8 @@
       <property name="prechatLastNameApiName" type="String" label="Prechat last name field API name" default="_lastName"/>
       <property name="prechatEmailApiName" type="String" label="Prechat email field API name" default="_email"/>
       <property name="debug" type="Boolean" label="Enable debug logs in console" default="false"/>
+      <property name="language" type="String" label="Language (e.g., en_US)" default="en_US"/>
+      <property name="disableTargetElement" type="Boolean" label="Disable custom container (dock widget)" default="false"/>
     </targetConfig>
     <!-- Removed empty lightningCommunity__Page targetConfig to avoid validation error -->
   </targetConfigs>
