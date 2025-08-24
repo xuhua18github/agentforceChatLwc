@@ -1,0 +1,23 @@
+<template>
+  <!-- Launcher root: contains search input, action buttons, and the embedded messaging container -->
+  <div class="launcher">
+    <!-- Simple search bar to seed a subject and auto-send an initial message -->
+    <div class="search-bar">
+      <lightning-input type="text" label="Ask Agentforce" value={searchQuery} onchange={handleQueryChange} placeholder='Ask questions like "How do I reset my password?"'></lightning-input>
+      <lightning-button variant="brand" label="Ask" title="Ask" onclick={handleSearch}></lightning-button>
+    </div>
+
+    <!-- Optional separate launcher button that opens the widget directly -->
+    <div class="actions">
+      <lightning-button
+        variant="neutral"
+        label={buttonLabel}
+        title={buttonLabel}
+        onclick={handleLaunchClick}
+      ></lightning-button>
+    </div>
+
+    <!-- Container where Embedded Messaging renders (targetElement). We toggle a full-screen overlay via CSS class. -->
+    <div id="embeddedMessagingContainer" data-embedded-container class={containerClasses}></div>
+  </div>
+</template>
