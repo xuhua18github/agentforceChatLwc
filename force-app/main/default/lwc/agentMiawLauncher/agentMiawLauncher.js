@@ -45,11 +45,14 @@ export default class AgentMiawLauncher extends LightningElement {
   // Debug toggle to emit console logs prefixed with [AgentMiawLauncher]
   @api debug = false;
   @api disableTargetElement = false; // Set true to let widget dock (avoid custom container)
+  @api skipInitIfBootstrapPresent; // If undefined, treated as true; skip init when global exists
 
   // Internal state for script lifecycle
   _scriptLoading = false;
   _scriptLoaded = false;
   _messagingReady = false; // becomes true after onEmbeddedMessagingReady
+  _managedBootstrap = false; // Head Markup or external manages init
+  _listenersRegistered = false; // prevent duplicate listener bindings
 
   // Current user details (for prechat convenience)
   _userFirstName;
@@ -77,6 +80,15 @@ export default class AgentMiawLauncher extends LightningElement {
   // On first attachment, load and init Embedded Messaging
   connectedCallback() {
     if (this.debug) console.log('[AgentMiawLauncher] connectedCallback');
+    // If bootstrap is already present and we should skip init, don't load or init again
+    const shouldSkip = (this.skipInitIfBootstrapPresent !== false);
+    if (shouldSkip && window.embeddedservice_bootstrap) {
+      if (this.debug) console.log('[AgentMiawLauncher] bootstrap present; skipping init');
+      this._scriptLoaded = true;
+      this._managedBootstrap = true;
+      this.configureAndInit(false);
+      return;
+    }
     this.initEmbeddedMessaging(false);
   }
 
@@ -128,6 +140,15 @@ export default class AgentMiawLauncher extends LightningElement {
 
   // Lazy-load bootstrap if needed, then init
   initEmbeddedMessaging(openAfterInit) {
+    // Skip loading if global already present and we are configured to skip
+    const shouldSkip = (this.skipInitIfBootstrapPresent !== false);
+    if (shouldSkip && window.embeddedservice_bootstrap) {
+      this._scriptLoaded = true;
+      this._managedBootstrap = true;
+      if (this.debug) console.log('[AgentMiawLauncher] bootstrap present; skipping script load');
+      this.configureAndInit(openAfterInit);
+      return;
+    }
     if (this._scriptLoading) {
       const wait = () => {
         if (this._scriptLoaded) {
@@ -182,6 +203,40 @@ export default class AgentMiawLauncher extends LightningElement {
     try {
       if (this.debug) console.log('[AgentMiawLauncher] configureAndInit init');
 
+      // Register listeners once to capture early failures or readiness
+      if (!this._listenersRegistered) {
+        window.addEventListener('onEmbeddedMessagingReady', async () => {
+          if (this.debug) console.log('[AgentMiawLauncher] onEmbeddedMessagingReady');
+          this._messagingReady = true;
+          await this.setIdentity();
+          if (this.enableSearchMode) {
+            this.tryOpenSearchUi();
+          }
+          if (this._pendingInitialQuery) {
+            this.launchWithPrechat(this._pendingInitialQuery);
+          }
+        });
+        window.addEventListener('onEmbeddedMessagingError', (e) => {
+          console.error('MIAW error', e && e.detail);
+        });
+        window.addEventListener('onEmbeddedMessagingInitFailed', (e) => {
+          console.error('MIAW init failed', e && e.detail);
+        });
+        window.addEventListener('onEmbeddedMessagingIdentityTokenExpired', async () => {
+          if (this.debug) console.log('[AgentMiawLauncher] onIdentityTokenExpired');
+          await this.setIdentity();
+        });
+        this._listenersRegistered = true;
+      }
+
+      // If bootstrap is managed externally, do not set settings or call init here
+      if (this._managedBootstrap) {
+        if (openAfterInit) {
+          window.setTimeout(() => this.openMessaging(), 50);
+        }
+        return;
+      }
+
       // Optional search UI flag (no-op if unsupported by your org/version)
       try {
         if (this.enableSearchMode && window.embeddedservice_bootstrap && window.embeddedservice_bootstrap.settings) {
@@ -223,29 +278,6 @@ export default class AgentMiawLauncher extends LightningElement {
         if (this.debug) console.warn('[AgentMiawLauncher] pre-init targetElement failed', e);
       }
 
-      // Register listeners BEFORE init to capture early failures
-      window.addEventListener('onEmbeddedMessagingReady', async () => {
-        if (this.debug) console.log('[AgentMiawLauncher] onEmbeddedMessagingReady');
-        this._messagingReady = true;
-        await this.setIdentity();
-        if (this.enableSearchMode) {
-          this.tryOpenSearchUi();
-        }
-        if (this._pendingInitialQuery) {
-          this.launchWithPrechat(this._pendingInitialQuery);
-        }
-      });
-      window.addEventListener('onEmbeddedMessagingError', (e) => {
-        console.error('MIAW error', e && e.detail);
-      });
-      window.addEventListener('onEmbeddedMessagingInitFailed', (e) => {
-        console.error('MIAW init failed', e && e.detail);
-      });
-      window.addEventListener('onEmbeddedMessagingIdentityTokenExpired', async () => {
-        if (this.debug) console.log('[AgentMiawLauncher] onIdentityTokenExpired');
-        await this.setIdentity();
-      });
-
       // Initialize Embedded Messaging (bootstrap)
       window.embeddedservice_bootstrap.init(
         this.salesforceOrgId,
@@ -255,6 +287,10 @@ export default class AgentMiawLauncher extends LightningElement {
           scrt2URL: this.scrt2Url
         }
       );
+
+      if (openAfterInit) {
+        window.setTimeout(() => this.openMessaging(), 50);
+      }
     } catch (e) {
       if (this.debug) console.error('[AgentMiawLauncher] configureAndInit error', e);
     }
