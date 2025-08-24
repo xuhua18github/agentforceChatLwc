@@ -25,6 +25,7 @@ export default class AgentMiawLauncher extends LightningElement {
   @api deploymentName = 'YOUR_DEPLOYMENT_NAME';
   @api scrt2Url = 'https://YOUR_EXPERIENCE_SITE_URL/ESW_Messaging';
   @api buttonLabel = 'Contact support';
+  @api language = 'en_US'; // Language for Embedded Messaging (e.g., 'en_US')
 
   // Identity: credential-based (OAuth) verification
   @api identityTokenType = 'OAuth';
@@ -198,6 +199,16 @@ export default class AgentMiawLauncher extends LightningElement {
         }
       } catch (e) {
         if (this.debug) console.warn('[AgentMiawLauncher] bot input setting failed', e);
+      }
+
+      // Ensure language is set before init to avoid 400 (language=undefined)
+      try {
+        if (window.embeddedservice_bootstrap && window.embeddedservice_bootstrap.settings) {
+          window.embeddedservice_bootstrap.settings.language = this.language || 'en_US';
+          if (this.debug) console.log('[AgentMiawLauncher] language', window.embeddedservice_bootstrap.settings.language);
+        }
+      } catch (e) {
+        if (this.debug) console.warn('[AgentMiawLauncher] language set failed', e);
       }
 
       // Bind targetElement before init if available
