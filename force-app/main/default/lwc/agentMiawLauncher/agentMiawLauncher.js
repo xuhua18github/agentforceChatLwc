@@ -44,6 +44,7 @@ export default class AgentMiawLauncher extends LightningElement {
 
   // Debug toggle to emit console logs prefixed with [AgentMiawLauncher]
   @api debug = false;
+  @api disableTargetElement = false; // Set true to let widget dock (avoid custom container)
 
   // Internal state for script lifecycle
   _scriptLoading = false;
@@ -83,7 +84,7 @@ export default class AgentMiawLauncher extends LightningElement {
   renderedCallback() {
     try {
       const container = this.template.querySelector('[data-embedded-container]');
-      if (container && window.embeddedservice_bootstrap?.settings) {
+      if (!this.disableTargetElement && container && window.embeddedservice_bootstrap?.settings) {
         window.embeddedservice_bootstrap.settings.targetElement = container;
         if (this.debug) console.log('[AgentMiawLauncher] targetElement set');
       }
@@ -214,7 +215,7 @@ export default class AgentMiawLauncher extends LightningElement {
       // Bind targetElement before init if available
       try {
         const container = this.template && this.template.querySelector('[data-embedded-container]');
-        if (container && window.embeddedservice_bootstrap?.settings) {
+        if (!this.disableTargetElement && container && window.embeddedservice_bootstrap?.settings) {
           window.embeddedservice_bootstrap.settings.targetElement = container;
           if (this.debug) console.log('[AgentMiawLauncher] targetElement set (pre-init)');
         }
@@ -244,6 +245,13 @@ export default class AgentMiawLauncher extends LightningElement {
         if (this._pendingInitialQuery) {
           this.launchWithPrechat(this._pendingInitialQuery);
         }
+      });
+      // Surface init/runtime failures in the console
+      window.addEventListener('onEmbeddedMessagingError', (e) => {
+        console.error('MIAW error', e && e.detail);
+      });
+      window.addEventListener('onEmbeddedMessagingInitFailed', (e) => {
+        console.error('MIAW init failed', e && e.detail);
       });
       window.addEventListener('onEmbeddedMessagingIdentityTokenExpired', async () => {
         if (this.debug) console.log('[AgentMiawLauncher] onIdentityTokenExpired');
